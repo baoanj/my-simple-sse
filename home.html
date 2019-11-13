@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Example App</title>
+  <style>
+    .msg-item {
+      margin: 20px 0;
+    }
+    .user {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .time {
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .msg {
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Hello</h1>
+  <div>
+    <input id="user" type="text" placeholder="用户名">
+    <input id="msg" type="text" placeholder="消息">
+    <button onclick="send()">发送</button>
+  </div>
+  <div id="dialog"></div>
+  <script>
+    const dialog = document.querySelector('#dialog')
+    const source = new EventSource('/sse')
+    source.onmessage = function(e) {
+      const data = JSON.parse(e.data)
+      const div = document.createElement('div')
+      div.classList.add('msg-item')
+      div.innerHTML = `
+        <div>
+          <span class="user">${data.user}</span>
+          <span class="time">${formatDate(data.time)}</span>
+        </div>
+        <div class="msg">${data.msg}</div>
+      `
+      dialog.appendChild(div)
+      checkAlive(data.id)
+    }
+
+    function send() {
+      var xhr = new XMLHttpRequest()
+      xhr.onreadystatechange = res => {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          const res = JSON.parse(xhr.responseText)
+          console.log(res.msg)
+        }
+      }
+      xhr.open('POST', '/send')
+      xhr.setRequestHeader('Content-type','application/json')
+      xhr.send(JSON.stringify({
+        user: document.querySelector('#user').value,
+        msg: document.querySelector('#msg').value
+      }))
+    }
+
+    function formatDate(t) {
+      const date = new Date(t)
+      return date.toLocaleDateString() + ' ' + date.toTimeString().slice(0, 8)
+    }
+
+    async function checkAlive(id) {
+      if (id === undefined) return
+      const res = await fetch('/alive', {
+        method: 'POST',
+        headers: {
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({ id })
+      })
+      res.json().then(data => {
+        console.log(data.msg)
+      })
+    }
+  </script>
+</body>
+</html>
